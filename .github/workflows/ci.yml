@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  QT_QPA_PLATFORM: offscreen
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install GNOVI + test dependencies
+        run: pip install -e ".[test]"
+
+      - name: Run tests (Ubuntu, with coverage)
+        if: matrix.os == 'ubuntu-latest'
+        run: pytest --cov=gnovi_plot --cov-report=term-missing --cov-report=xml
+
+      - name: Run tests (Windows)
+        if: matrix.os == 'windows-latest'
+        run: pytest
+
+      - name: Upload coverage to Codecov
+        if: matrix.os == 'ubuntu-latest'
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: false
+        # No CODECOV_TOKEN configured yet. If uploads start failing once this
+        # repo is public on Codecov, add one as a repo secret -- this step is
+        # intentionally non-blocking (fail_ci_if_error: false) until then, so
+        # coverage upload issues never fail an otherwise-green test run.
